@@ -356,6 +356,56 @@ local function CreateRollRow(parent)
     return rollRow
 end
 
+-- ============================================================================
+-- SETTINGS POPUP
+-- ============================================================================
+
+local settingsPopup = CreateStyledFrame("RaidLootTrackerSettingsPopup", mainFrame, 200, 90, "Settings")
+settingsPopup:SetPoint("BOTTOMRIGHT", mainFrame, "BOTTOMRIGHT", -10, 48)
+settingsPopup:SetFrameStrata("DIALOG")
+settingsPopup:Hide()
+
+local UpdateRunnerUpCountLabel  -- forward declaration so closures below can capture it
+
+local ruLabel = settingsPopup:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+ruLabel:SetPoint("TOP", settingsPopup, "TOP", 0, -36)
+ruLabel:SetText("Runner-ups shown:")
+
+local ruMinusBtn = CreateStyledButton(settingsPopup, "-", 22, 22)
+ruMinusBtn:SetPoint("CENTER", settingsPopup, "CENTER", -20, -15)
+ruMinusBtn:SetScript("OnClick", function()
+    local cur = RaidLootTrackerDB.settings.maxRunnerUps or 2
+    if cur > 0 then
+        RaidLootTrackerDB.settings.maxRunnerUps = cur - 1
+        UpdateRunnerUpCountLabel()
+        addon:RefreshLootDisplay()
+    end
+end)
+
+local ruValueLabel = settingsPopup:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+ruValueLabel:SetPoint("CENTER", settingsPopup, "CENTER", 0, -15)
+ruValueLabel:SetWidth(20)
+ruValueLabel:SetJustifyH("CENTER")
+settingsPopup.ruValueLabel = ruValueLabel
+
+local ruPlusBtn = CreateStyledButton(settingsPopup, "+", 22, 22)
+ruPlusBtn:SetPoint("CENTER", settingsPopup, "CENTER", 20, -15)
+ruPlusBtn:SetScript("OnClick", function()
+    local cur = RaidLootTrackerDB.settings.maxRunnerUps or 2
+    if cur < 24 then
+        RaidLootTrackerDB.settings.maxRunnerUps = cur + 1
+        UpdateRunnerUpCountLabel()
+        addon:RefreshLootDisplay()
+    end
+end)
+
+UpdateRunnerUpCountLabel = function()
+    local val = RaidLootTrackerDB.settings.maxRunnerUps or 2
+    settingsPopup.ruValueLabel:SetText(tostring(val))
+end
+
+settingsPopup:SetScript("OnShow", UpdateRunnerUpCountLabel)
+
 -- Footer buttons
 local addBtn = CreateStyledButton(mainFrame, "Add Entry", 90, 26)
 addBtn:SetPoint("BOTTOMLEFT", 10, 12)
@@ -373,6 +423,16 @@ local resetBtn = CreateStyledButton(mainFrame, "Reset All", 80, 26)
 resetBtn:SetPoint("LEFT", clearBtn, "RIGHT", 10, 0)
 resetBtn:SetScript("OnClick", function()
     StaticPopup_Show("RAIDLOOTTRACKER_RESET_CONFIRM")
+end)
+
+local settingsBtn = CreateStyledButton(mainFrame, "Settings", 75, 26)
+settingsBtn:SetPoint("BOTTOMRIGHT", -100, 12)
+settingsBtn:SetScript("OnClick", function()
+    if settingsPopup:IsShown() then
+        settingsPopup:Hide()
+    else
+        settingsPopup:Show()
+    end
 end)
 
 local summaryBtn = CreateStyledButton(mainFrame, "Summary", 80, 26)
@@ -467,10 +527,11 @@ function addon:RefreshLootDisplay()
                     })
                 end
 
-                -- Add top 2 runner-ups only
+                -- Add runner-ups up to the user-configured limit
+                local maxRunnerUps = RaidLootTrackerDB.settings.maxRunnerUps or 2
                 if entry.runnerUps then
                     for i, runnerUp in ipairs(entry.runnerUps) do
-                        if i > 2 then break end
+                        if i > maxRunnerUps then break end
                         table.insert(rollData, {
                             player = runnerUp.player,
                             roll = runnerUp.roll,
@@ -565,50 +626,52 @@ summaryFrame.scrollChild = summaryScrollChild
 
 summaryFrame.rows = {}
 
--- Create a summary row
-local function CreateSummaryRow(parent, index)
+-- Create a summary player row
+local function CreateSummaryRow(parent)
     local row = CreateFrame("Frame", nil, parent, "BackdropTemplate")
     row:SetHeight(26)
-    row:SetPoint("TOPLEFT", 0, -(index - 1) * 26)
+    row:SetPoint("TOPLEFT", 0, 0)
     row:SetPoint("RIGHT", 0, 0)
 
-    row:SetBackdrop({
-        bgFile = "Interface\\Buttons\\WHITE8x8",
-    })
-
-    if index % 2 == 0 then
-        row:SetBackdropColor(unpack(COLORS.rowAlt))
-    else
-        row:SetBackdropColor(0, 0, 0, 0)
-    end
+    row:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8x8" })
+    row:SetBackdropColor(0, 0, 0, 0)
 
     row:EnableMouse(true)
     row:SetScript("OnEnter", function(self)
         self:SetBackdropColor(unpack(COLORS.rowHover))
-        -- Show items tooltip
-        if self.items and #self.items > 0 then
-            GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-            GameTooltip:AddLine(self.playerName .. "'s Loot", 1, 0.82, 0)
-            GameTooltip:AddLine(" ")
-            for _, item in ipairs(self.items) do
-                GameTooltip:AddLine(item.itemLink)
-            end
-            GameTooltip:Show()
-        end
     end)
     row:SetScript("OnLeave", function(self)
-        if index % 2 == 0 then
-            self:SetBackdropColor(unpack(COLORS.rowAlt))
-        else
-            self:SetBackdropColor(0, 0, 0, 0)
-        end
-        GameTooltip:Hide()
+        self:SetBackdropColor(self.bgR, self.bgG, self.bgB, self.bgA or 0)
     end)
+
+    -- Expand/collapse button
+    local expandBtn = CreateFrame("Button", nil, row)
+    expandBtn:SetSize(16, 16)
+    expandBtn:SetPoint("LEFT", 4, 0)
+    expandBtn:SetNormalTexture("Interface\\Buttons\\UI-PlusButton-Up")
+    expandBtn:SetPushedTexture("Interface\\Buttons\\UI-PlusButton-Down")
+    expandBtn:SetHighlightTexture("Interface\\Buttons\\UI-PlusButton-Hilight", "ADD")
+    expandBtn:SetScript("OnClick", function(self)
+        row.expanded = not row.expanded
+        if row.expanded then
+            self:SetNormalTexture("Interface\\Buttons\\UI-MinusButton-Up")
+        else
+            self:SetNormalTexture("Interface\\Buttons\\UI-PlusButton-Up")
+        end
+        addon:RefreshSummaryDisplay()
+    end)
+    expandBtn:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:SetText(row.expanded and "Hide Items" or "Show Items")
+        GameTooltip:Show()
+    end)
+    expandBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    row.expandBtn = expandBtn
 
     -- Player name
     local playerText = row:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    playerText:SetPoint("LEFT", 10, 0)
-    playerText:SetWidth(180)
+    playerText:SetPoint("LEFT", 24, 0)
+    playerText:SetWidth(160)
     playerText:SetJustifyH("LEFT")
     row.playerText = playerText
 
@@ -618,9 +681,39 @@ local function CreateSummaryRow(parent, index)
     countText:SetTextColor(unpack(COLORS.gold))
     row.countText = countText
 
+    row.expanded = false
+    row.breakdownRow = nil  -- created lazily in RefreshSummaryDisplay
     row:Hide()
     return row
 end
+
+-- Create a roll type breakdown sub-row (one per player, shown when expanded)
+local function CreateSummaryBreakdownRow(parent)
+    local row = CreateFrame("Frame", nil, parent, "BackdropTemplate")
+    row:SetHeight(22)
+    row:SetPoint("TOPLEFT", 0, 0)
+    row:SetPoint("RIGHT", 0, 0)
+
+    row:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8x8" })
+    row:SetBackdropColor(0.08, 0.08, 0.08, 1)
+
+    local breakdownText = row:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    breakdownText:SetPoint("LEFT", 24, 0)
+    breakdownText:SetPoint("RIGHT", -8, 0)
+    breakdownText:SetJustifyH("LEFT")
+    row.breakdownText = breakdownText
+
+    row:Hide()
+    return row
+end
+
+-- Roll type display colours
+local ROLL_TYPE_COLORS = {
+    ["Need"]        = "|cff00ff00",
+    ["Need (OS)"]   = "|cff00cc44",
+    ["Greed"]       = "|cff4488ff",
+    ["Transmog"]    = "|cffcc55ff",
+}
 
 -- Refresh summary display
 function addon:RefreshSummaryDisplay()
@@ -637,40 +730,77 @@ function addon:RefreshSummaryDisplay()
     end
     table.sort(sorted, function(a, b) return a.count > b.count end)
 
-    -- Ensure enough rows
+    -- Ensure enough player rows
     while #summaryFrame.rows < #sorted do
-        local row = CreateSummaryRow(summaryFrame.scrollChild, #summaryFrame.rows + 1)
+        local row = CreateSummaryRow(summaryFrame.scrollChild)
         table.insert(summaryFrame.rows, row)
     end
 
-    -- Update scroll child height
-    summaryFrame.scrollChild:SetHeight(math.max(1, #sorted * 26))
+    local yOffset = 0
 
-    -- Populate rows
     for i, row in ipairs(summaryFrame.rows) do
         if i <= #sorted then
             local data = sorted[i]
             row.playerName = data.player
             row.items = data.items
 
+            -- Alternate background
+            local r, g, b, a = 0, 0, 0, 0
+            if i % 2 == 0 then r, g, b, a = unpack(COLORS.rowAlt) end
+            row.bgR, row.bgG, row.bgB, row.bgA = r, g, b, a
+            row:SetBackdropColor(r, g, b, a)
+
             row.playerText:SetText(addon:ColorPlayerName(data.player))
             row.countText:SetText(data.count .. " item" .. (data.count ~= 1 and "s" or ""))
 
             row:ClearAllPoints()
-            row:SetPoint("TOPLEFT", 0, -(i - 1) * 26)
+            row:SetPoint("TOPLEFT", 0, -yOffset)
             row:SetPoint("RIGHT", 0, 0)
+            row:Show()
+            yOffset = yOffset + 26
 
-            if i % 2 == 0 then
-                row:SetBackdropColor(unpack(COLORS.rowAlt))
-            else
-                row:SetBackdropColor(0, 0, 0, 0)
+            -- Create breakdown row lazily
+            if not row.breakdownRow then
+                row.breakdownRow = CreateSummaryBreakdownRow(summaryFrame.scrollChild)
             end
 
-            row:Show()
+            -- Build roll type count breakdown
+            if row.expanded then
+                local counts = {}
+                local order = {}
+                for _, entry in ipairs(data.items) do
+                    local rt = entry.rollType or "Unknown"
+                    if not counts[rt] then
+                        counts[rt] = 0
+                        table.insert(order, rt)
+                    end
+                    counts[rt] = counts[rt] + 1
+                end
+
+                local parts = {}
+                for _, rt in ipairs(order) do
+                    local color = ROLL_TYPE_COLORS[rt] or "|cffaaaaaa"
+                    table.insert(parts, color .. rt .. ": " .. counts[rt] .. "|r")
+                end
+                row.breakdownRow.breakdownText:SetText(table.concat(parts, "  "))
+
+                row.breakdownRow:ClearAllPoints()
+                row.breakdownRow:SetPoint("TOPLEFT", 0, -yOffset)
+                row.breakdownRow:SetPoint("RIGHT", 0, 0)
+                row.breakdownRow:Show()
+                yOffset = yOffset + 22
+            else
+                row.breakdownRow:Hide()
+            end
         else
             row:Hide()
+            if row.breakdownRow then
+                row.breakdownRow:Hide()
+            end
         end
     end
+
+    summaryFrame.scrollChild:SetHeight(math.max(1, yOffset))
 end
 
 -- Toggle summary window

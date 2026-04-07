@@ -12,7 +12,7 @@ A World of Warcraft addon for tracking loot distribution during raids with roll 
 
 ### Roll Tracking
 - Captures **group loot Need/Greed/Pass rolls** directly from the WoW loot history API
-- Shows the winning roll and the **top 2 runner-ups** per item
+- Shows the winning roll and a configurable number of runner-ups per item (default 2, adjustable in Settings)
 - Each roll shows the player name (class-coloured), roll value, and roll type (e.g. `Roll: 98 [Need]`)
 - Roll type is tracked per-player: winners and runner-ups each display their own roll type independently
 - Supported roll types: **Need**, **Need (OS)**, **Greed**, **Transmog**
@@ -36,6 +36,7 @@ A World of Warcraft addon for tracking loot distribution during raids with roll 
 
 ### Player Summary
 - View loot distribution by player, sorted by item count
+- Click **+** on any player row to expand a roll-type breakdown (e.g. Need: 2, Transmog: 1)
 - Hover over a player row to see their full item list in a tooltip
 
 ### Minimap Button
@@ -78,7 +79,7 @@ A World of Warcraft addon for tracking loot distribution during raids with roll 
 1. Items with rolls show a **+** button next to the Reassign button
 2. Click **+** to expand the roll breakdown
 3. The winner's row is highlighted in green with their roll type (e.g. `[Need]`)
-4. Up to 2 runner-ups are shown below with their own roll types
+4. Runner-ups are shown below with their own roll types (count configurable in Settings)
 5. Click **−** to collapse
 
 ### Reassigning Loot
@@ -173,6 +174,9 @@ All other APIs are stable and have no known deprecation concerns, except `UIDrop
 
 ## Changelog
 
+- **v1.3**:
+  - Added **Settings popup** (new footer button on main window) with a configurable runner-up count — use `+`/`−` to set how many runner-up rolls are displayed per item (default 2, max 24); value persists across sessions
+  - **Summary window** player rows are now expandable — click `+` to show a roll-type breakdown beneath each player (e.g. `Need: 2  Transmog: 1  Greed: 1`), colour-coded by roll type (Need = green, Greed = blue, Transmog = purple, Need (OS) = teal)
 - **v1.2**: Replaced chat-based roll parsing with `C_LootHistory` API for accurate Need/Greed tracking; added roll type display per player; class icons and class colours on roll rows; shift-click item insertion fixed; quest reward tracking eliminated
 - **v1.1**: Performance optimisations, filter UI improvements, easter egg
 - **v1.0**: Initial release

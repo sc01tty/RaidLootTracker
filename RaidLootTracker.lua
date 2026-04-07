@@ -35,6 +35,7 @@ local defaults = {
         minimapIcon = { hide = false, minimapPos = 220 },
         autoTrack = true,
         minQuality = EPIC_QUALITY,
+        maxRunnerUps = 2,
     },
     sessionStart = nil,
 }
