@@ -1,8 +1,8 @@
-## Interface: 120001
+## Interface: 120100
 ## Title: Raid Loot Tracker
 ## Notes: Tracks boss loot drops in raids and who received them. Supports manual reassignment and session summaries.
 ## Author: You
-## Version: 1.3.0
+## Version: 1.18.1
 ## SavedVariables: RaidLootTrackerDB
 ## IconTexture: Interface\Icons\INV_Misc_Bag_10_Blue
 
